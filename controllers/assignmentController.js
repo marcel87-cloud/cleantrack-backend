@@ -112,25 +112,52 @@ const updateStatus = async (req, res) => {
 const completeAssignment = async (req, res) => {
   const { collection_notes, waste_quantity_collected } = req.body;
   const proofPhoto = req.file ? `/uploads/proof-photos/${req.file.filename}` : null;
-
-  const [result] = await pool.query(
-    `UPDATE pickup_assignments
-     SET status = 'collected', collection_notes = ?, waste_quantity_collected = ?, proof_photo = COALESCE(?, proof_photo), completed_at = NOW()
-     WHERE id = ? AND driver_id = ?`,
-    [collection_notes || null, waste_quantity_collected || null, proofPhoto, req.params.id, req.user.id]
-  );
-
-  if (!result.affectedRows) return res.status(404).json({ message: "Assignment not found" });
-
-  await pool.query(
-    `UPDATE pickup_requests pr
-     JOIN pickup_assignments pa ON pa.pickup_request_id = pr.id
-     SET pr.status = 'collected', pr.completed_at = NOW()
-     WHERE pa.id = ?`,
-    [req.params.id]
-  );
-
-  res.json({ message: "Pickup marked as collected" });
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [assignments] = await connection.query(
+      `SELECT pa.id, pa.pickup_request_id, pr.customer_id
+       FROM pickup_assignments pa JOIN pickup_requests pr ON pr.id = pa.pickup_request_id
+       WHERE pa.id = ? AND pa.driver_id = ? AND pa.status <> 'collected' FOR UPDATE`,
+      [req.params.id, req.user.id]
+    );
+    if (!assignments.length) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Assignment not found or already completed" });
+    }
+    const assignment = assignments[0];
+    await connection.query(
+      `UPDATE pickup_assignments
+       SET status = 'collected', collection_notes = ?, waste_quantity_collected = ?,
+           proof_photo = COALESCE(?, proof_photo), completed_at = NOW()
+       WHERE id = ? AND driver_id = ?`,
+      [collection_notes || null, waste_quantity_collected || null, proofPhoto, req.params.id, req.user.id]
+    );
+    await connection.query(
+      "UPDATE pickup_requests SET status = 'collected', completed_at = NOW() WHERE id = ?",
+      [assignment.pickup_request_id]
+    );
+    // Award 10 points once per pickup. The unique pickup_request_id prevents duplicate rewards.
+    const [rewardInsert] = await connection.query(
+      `INSERT IGNORE INTO points_transactions (customer_id, pickup_request_id, points_awarded, reason)
+       VALUES (?, ?, 10, 'Verified waste collection')`,
+      [assignment.customer_id, assignment.pickup_request_id]
+    );
+    if (rewardInsert.affectedRows === 1) {
+      await connection.query(
+        `INSERT INTO customer_points (customer_id, points) VALUES (?, 10)
+         ON DUPLICATE KEY UPDATE points = points + 10`,
+        [assignment.customer_id]
+      );
+    }
+    await connection.commit();
+    res.json({ message: "Pickup marked as collected. Customer rewards updated." });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ message: "Could not complete pickup" });
+  } finally {
+    connection.release();
+  }
 };
 
 const failAssignment = async (req, res) => {

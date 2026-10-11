@@ -1,0 +1,10 @@
+const express = require("express");
+const { listMySchedules, createSchedule, updateScheduleStatus } = require("../controllers/scheduleController");
+const { protect } = require("../middleware/authMiddleware");
+const { allowRoles } = require("../middleware/roleMiddleware");
+const router = express.Router();
+router.use(protect, allowRoles("customer"));
+router.get("/my", listMySchedules);
+router.post("/", createSchedule);
+router.patch("/:id/status", updateScheduleStatus);
+module.exports = router;

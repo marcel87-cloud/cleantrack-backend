@@ -1,5 +1,8 @@
+-- Active: 1790163018594@@127.0.0.1@3306@cleantrack_uganda
+
 USE cleantrack_uganda;
 
+SHOW DATABASES;
 -- All demo users use this password: password123
 SET @demo_password = '$2b$10$1itDutuxh3pi2lmMrdAd4.7HOwRS0phpwopISzr5zTXSjScRatOZq';
 
@@ -82,3 +85,6 @@ INSERT INTO notifications (user_id, title, message, status) VALUES
 (8, 'Pickup received', 'Your pickup request has been received by CleanTrack Uganda.', 'unread'),
 (4, 'New assignment', 'You have a new pickup assignment in Kampala.', 'unread'),
 (2, 'Pending hazardous pickup', 'A hazardous pickup request needs assignment.', 'unread');
+
+
+SELECT * FROM users;

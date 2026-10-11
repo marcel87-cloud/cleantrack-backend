@@ -1,0 +1,10 @@
+const express = require("express");
+const { createRequest, listMyRequests, listForReview, reviewRequest } = require("../controllers/rescheduleController");
+const { protect } = require("../middleware/authMiddleware");
+const { allowRoles } = require("../middleware/roleMiddleware");
+const router = express.Router();
+router.get("/my", protect, allowRoles("customer"), listMyRequests);
+router.post("/:pickupId", protect, allowRoles("customer"), createRequest);
+router.get("/review/pending", protect, allowRoles("manager", "admin"), listForReview);
+router.patch("/review/:id", protect, allowRoles("manager", "admin"), reviewRequest);
+module.exports = router;

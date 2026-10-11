@@ -12,6 +12,10 @@ const truckRoutes = require("./routes/truckRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const scheduleRoutes = require("./routes/scheduleRoutes");
+const rewardRoutes = require("./routes/rewardRoutes");
+const rescheduleRoutes = require("./routes/rescheduleRoutes");
+const { generateDuePickups } = require("./controllers/scheduleController");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -52,6 +56,9 @@ app.use("/api/trucks", truckRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/schedules", scheduleRoutes);
+app.use("/api/rewards", rewardRoutes);
+app.use("/api/reschedules", rescheduleRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
@@ -64,4 +71,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`CleanTrack Uganda backend running on port ${PORT}`);
+  // Process schedules due while the server was offline, then check once per day.
+  generateDuePickups();
+  setInterval(generateDuePickups, 24 * 60 * 60 * 1000);
 });

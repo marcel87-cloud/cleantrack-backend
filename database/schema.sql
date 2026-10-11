@@ -1,4 +1,4 @@
-DROP DATABASE IF EXISTS cleantrack_uganda;
+
 CREATE DATABASE cleantrack_uganda;
 USE cleantrack_uganda;
 
@@ -139,3 +139,6 @@ CREATE TABLE audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+
+SELECT * FROM users;
