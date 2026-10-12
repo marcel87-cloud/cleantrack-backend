@@ -1,173 +1,197 @@
-# CleanTrack Uganda Backend
+# CleanTrack Uganda backend
 
-CleanTrack Uganda is a student-learning waste management API built with Node.js, Express.js, MariaDB/MySQL, JWT authentication, bcrypt password hashing, and Multer image uploads.
+CleanTrack Uganda is a web-based waste collection management application that connects customers, drivers, waste collection company managers, and administrators. Customers can report waste collection needs and manage pickup requests, while drivers and managers coordinate collection work. The project has a React frontend, a Node.js/Express REST API, and a MySQL/MariaDB database.
 
-## Tech Stack
+This version extends the original application with three additional features: recurring pickup schedules, customer recycling rewards, and pickup rescheduling requests.
 
-- Node.js and Express.js for the API server
-- MariaDB/MySQL for persistent data
-- `mysql2/promise` for database queries
-- JWT for protected routes
-- bcrypt for password hashing
-- Multer for pickup and proof photo uploads
+## Main Features
 
-## Folder Structure
+### Existing application features
 
-- `config/db.js` creates the MariaDB connection pool.
-- `controllers/` contains request logic and database queries.
-- `middleware/` contains JWT authentication, role checks, and upload configuration.
-- `routes/` maps API URLs to controller functions.
-- `uploads/` stores uploaded pickup and proof photos.
-- `database/schema.sql` creates tables.
-- `database/seed.sql` inserts demo learning data.
-- `server.js` configures Express and mounts all route files.
+- User registration and login with JWT authentication.
+- Role-based access for customers, drivers, company managers, and administrators.
+- Customer locations and waste pickup requests.
+- Pickup assignment and status updates for collection staff.
+- Company and truck management.
+- Waste category management, customer feedback, and photo uploads for pickup reports and collection proof.
 
-## Database Setup
+### Added features
 
-1. Install and start MariaDB/MySQL.
-2. Create or choose a database user with permission to create databases.
-3. Copy the environment file:
-   ```bash
-   cp .env.example .env
-   ```
-4. Update `.env` with your real database credentials.
-5. Create the schema and seed the demo records:
-   ```bash
-   npm run db:setup
-   ```
+1. **Recurring pickup schedules** — customers can create weekly or monthly schedules linked to their saved locations, view their schedules, and pause, reactivate, or cancel them. The backend checks for due schedules when it starts and every 24 hours, then creates the corresponding pickup requests. Generated requests still need to be assigned through the existing manager workflow.
+2. **Customer recycling rewards** — a customer earns 10 points when a pickup is successfully completed by a driver. The points history is stored in the database, and a completed pickup should not earn points more than once.
+3. **Pickup rescheduling** — customers can request a future date for an eligible pickup. A manager can review requests for pickups assigned to their company; an administrator can review pending requests through the API. Approving a request updates the pickup's scheduled date.
 
-For the default local setup used in this project, the MariaDB/MySQL username and password are both `root`:
+## Technology Stack
 
-```env
-DB_USER=root
-DB_PASSWORD=root
+- **Frontend:** React, Vite, React Router, Axios, and Bootstrap.
+- **Backend:** Node.js, Express, `mysql2`, JWT authentication, `bcrypt`, and Multer for image uploads.
+- **Database:** MySQL or MariaDB.
+- **API style:** REST endpoints under `/api`.
+
+## Project Structure
+
+The frontend and backend are maintained as separate projects:
+
+```text
+CleanTrack/
+├── cleantrack-frontend/
+│   ├── src/components/     # Shared UI components and route guards
+│   ├── src/context/        # Authentication context
+│   ├── src/layouts/        # Public and dashboard layouts
+│   ├── src/pages/          # Customer, driver, manager, and admin pages
+│   ├── src/services/       # Axios requests grouped by feature
+│   └── src/App.jsx         # Frontend routes
+└── cleantrack-backend/
+    ├── config/             # Database connection
+    ├── controllers/        # Request handling and business logic
+    ├── middleware/         # Authentication, role checks, and uploads
+    ├── routes/             # API route definitions
+    ├── database/           # Schema, seed data, and migration SQL
+    ├── scripts/            # Database setup helper
+    └── server.js            # Express application entry point
 ```
 
-`npm run db:setup` runs both `database/schema.sql` and `database/seed.sql`. The schema file recreates the `cleantrack_uganda` database, so do not run it against data you need to keep.
+## Requirements
 
-Manual alternative:
+Install the following before running the project:
 
-```bash
-mysql -u your_user -p < database/schema.sql
-mysql -u your_user -p cleantrack_uganda < database/seed.sql
-```
+- A compatible Node.js and npm version.
+- MySQL or MariaDB running locally.
+- A terminal and a browser.
 
-## Environment Variables
+## Setup and Run Locally
 
-Copy `.env.example` to `.env` and update values:
+Run the backend and frontend in separate terminals. The commands below assume both folders are in the same parent directory.
 
-```bash
-cp .env.example .env
-```
-
-Important values:
-
-- `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` connect to MariaDB/MySQL.
-- `JWT_SECRET` signs login tokens.
-- `FRONTEND_URL` controls CORS access from the React app.
-
-## Run Backend
+### 1. Configure the backend
 
 ```bash
+cd cleantrack-backend
 npm install
 cp .env.example .env
+```
+
+Open `cleantrack-backend/.env` and set the database connection details and a long, random `JWT_SECRET`. The example configuration uses:
+
+```env
+PORT=5000
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=cleantrack_uganda
+JWT_SECRET=replace_with_a_long_random_secret
+JWT_EXPIRES_IN=1d
+FRONTEND_URL=http://localhost:5173
+```
+
+These values are examples for local development. Use the username and password configured on your own computer; do not commit real credentials to Git.
+
+### 2. Set up the database
+
+**For a fresh local learning database only:**
+
+```bash
 npm run db:setup
+```
+
+This runs the supplied schema and seed scripts. The schema recreates the `cleantrack_uganda` database, so do not run this command if you need to preserve existing data.
+
+**For an existing CleanTrack database that you want to preserve:**
+
+1. Back up the database.
+2. Open `database/migrations.sql` and confirm that its database name matches `DB_NAME` in `.env`.
+3. Run the migration once from the backend directory, adjusting the username if necessary:
+
+```bash
+mysql -u root -p < database/migrations.sql
+```
+
+The migration adds the scheduled pickup date field and the tables required for recurring schedules, rewards, and rescheduling. It is intended as a migration for the existing schema, not as a replacement for `schema.sql`. If a migration was partially applied, inspect the database before running it again.
+
+### 3. Start the backend
+
+From `cleantrack-backend`:
+
+```bash
 npm run dev
 ```
 
-The API runs at `http://localhost:5000`.
-
-If port `5000` is already in use, change `PORT` in `.env`, for example:
-
-```env
-PORT=5002
-```
-
-Then update the frontend `VITE_API_URL` to match.
-
-Quick health check:
+The API normally runs at `http://localhost:5000`. Check that it responds by opening `http://localhost:5000/` or running:
 
 ```bash
 curl http://localhost:5000/
 ```
 
-Expected response:
+### 4. Configure and start the frontend
 
-```json
-{ "message": "CleanTrack Uganda API is running" }
+Open a second terminal:
+
+```bash
+cd cleantrack-frontend
+npm install
+cp .env.example .env
 ```
 
-## CORS Setup
+Ensure `cleantrack-frontend/.env` contains the URL of your backend:
 
-The backend allows the default Vite frontend origins:
+```env
+VITE_API_URL=http://localhost:5000/api
+```
 
-- `http://localhost:5173`
-- `http://127.0.0.1:5173`
-- `http://localhost:5174`
-- `http://127.0.0.1:5174`
+Then start Vite:
 
-If your frontend runs somewhere else, set `FRONTEND_URL` in `.env`, then restart the backend.
+```bash
+npm run dev
+```
 
-## API Endpoints
+Open the local URL printed by Vite, normally `http://localhost:5173`. The backend must be running at the same time. If you use a different backend port, update `VITE_API_URL`; if you use a different frontend port, update `FRONTEND_URL` in the backend environment and restart the backend.
 
-Auth:
+## Using the Added Features
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
+- **Recurring schedules:** Sign in as a customer and open **Recurring Schedules** in the customer navigation. Create a schedule using a location belonging to your account. Due pickup requests are generated by the backend; managers still assign drivers and trucks using the existing workflow.
+- **Rewards:** Sign in as a customer and open **My Rewards**. Complete a pickup through the normal driver workflow first; then check the customer's points balance and transaction history.
+- **Rescheduling:** Sign in as a customer and use **Reschedule Pickup** to request a future date for an eligible pickup. Sign in as the appropriate manager and open **Review Reschedules** to approve or reject requests.
 
-Customer locations:
+The reward policy in this version awards 10 points per successfully completed pickup. Monthly schedules use days 1 through 28 so the recurrence is valid in every month.
 
-- `POST /api/locations`
-- `GET /api/locations/my-locations`
-- `GET /api/locations/:id`
-- `PUT /api/locations/:id`
-- `DELETE /api/locations/:id`
+## Test Accounts
 
-Pickup requests:
+The supplied seed data documents these example accounts. All use the password `password123`:
 
-- `POST /api/pickups`
-- `GET /api/pickups/my-requests`
-- `GET /api/pickups/:id`
-- `PUT /api/pickups/:id/cancel`
-- `GET /api/pickups/pending/all`
-
-Assignments:
-
-- `POST /api/assignments`
-- `GET /api/assignments/driver/my-jobs`
-- `GET /api/assignments/company/my-jobs`
-- `PUT /api/assignments/:id/status`
-- `PUT /api/assignments/:id/complete`
-- `PUT /api/assignments/:id/failed`
-
-Companies, trucks, categories, feedback, and admin routes are implemented in their matching `routes/` and `controllers/` files.
-
-## Default Accounts
-
-All seed accounts use password `password123`.
-
-- Admin: `admin@cleantrack.ug`
+- Administrator: `admin@cleantrack.ug`
 - Customer: `customer@cleantrack.ug`
 - Driver: `driver1@cleantrack.ug`
 - Manager: `manager@greenroute.ug`
 
-## JWT Authentication
+Use these accounts only in a local learning environment. Change or remove seeded credentials before any public deployment.
 
-When a user logs in, the backend signs a JWT containing the user id and role. Protected routes use `authMiddleware.js` to verify the token, load the current user from the database, and reject inactive accounts.
+## Testing Checklist
 
-## Role-Based Access Control
+After setup, test both new and existing workflows:
 
-`roleMiddleware.js` checks `req.user.role` before a request reaches a controller. For example, customers can report bins, drivers can update assigned jobs, managers can assign pickups, and admins can view system-wide records.
+- Confirm login and the original pickup request workflow still work.
+- Create a recurring schedule; verify it is saved, remains visible after logging in again, and can be paused or cancelled.
+- Try invalid schedule dates and a location owned by another customer; the API should reject invalid or unauthorised requests.
+- Complete a pickup as the assigned driver and confirm the customer receives 10 points once, with a transaction visible in the rewards page.
+- Request a future rescheduling date; confirm an authorised manager can approve or reject it and that approval updates the pickup date.
+- Try past dates, another customer's pickup, duplicate pending requests, and requests from unauthorised roles.
+- Record the test steps, expected result, actual result, and pass/fail outcome. Capture screenshots for the assignment report.
 
-## Image Uploads
+## Security and Project Notes
 
-Multer stores customer bin photos in `uploads/pickup-photos/` and driver proof photos in `uploads/proof-photos/`. The backend serves `/uploads` statically so React can display saved images.
+- Copy `.env.example` to `.env`; never commit `.env`, real credentials, or private user data.
+- The API uses JWT authentication and role/ownership checks for protected operations.
+- Uploaded photos are stored under the backend's `uploads/` folders during local development.
+- Preserve the original project's attribution and record meaningful Git commits for your additions.
+- Disclose any AI assistance, external code, libraries, or references according to the lecturer's requirements.
+- Before submission, run the application on your own machine and verify the complete frontend, backend, and database integration. In particular, test the added features and repeat the original login and pickup workflow; do not report tests as passed until you have run them.
 
-## How the Frontend Talks to the Backend
+## Known Behaviour and Limitations
 
-The React frontend uses Axios service files. After login, the JWT is stored in `localStorage`; the Axios interceptor attaches it as `Authorization: Bearer <token>` for protected API requests.
+- Recurring schedules generate pickup requests but do not automatically assign a truck or driver.
+- Administrators can review pending rescheduling requests through the API; this version does not include a separate administrator review page.
+- The feature bundle's backend JavaScript was syntax-checked, but a full frontend production build and live database integration test were not verified during preparation. Confirm them locally and document any issues you encounter.
 
-## Repository Notes
+## Attribution
 
-This folder is its own Git repository. `node_modules/`, `.env`, generated logs, and uploaded photos are ignored. The empty upload folders are kept with `.gitkeep` files so students can see where images are stored.
+CleanTrack Uganda is based on the original CleanTrack frontend and backend repositories. Retain the original authorship and repository attribution when modifying or redistributing the project.
